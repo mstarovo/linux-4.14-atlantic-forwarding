@@ -264,6 +264,7 @@ static int atl_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 	nic = netdev_priv(ndev);
+	memset(nic, 0, sizeof(*nic));
 	nic->ndev = ndev;
 	nic->hw.pdev = pdev;
 	spin_lock_init(&nic->stats_lock);

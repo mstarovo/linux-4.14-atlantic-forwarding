@@ -3378,10 +3378,9 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 			  struct netlink_ext_ack *extack)
 {
 	struct macsec_dev *macsec = macsec_priv(dev);
-	struct net_device *real_dev, *loop_dev;
+	struct net_device *real_dev;
 	struct macsec_context ctx;
 	const struct macsec_ops *ops;
-	struct net *loop_net;
 	int err;
 	sci_t sci;
 	u8 icv_len = DEFAULT_ICV_LEN;
@@ -3392,25 +3391,6 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 	real_dev = __dev_get_by_index(net, nla_get_u32(tb[IFLA_LINK]));
 	if (!real_dev)
 		return -ENODEV;
-
-	for_each_net(loop_net) {
-		for_each_netdev(loop_net, loop_dev) {
-			struct macsec_dev *priv;
-
-			if (!netif_is_macsec(loop_dev))
-				continue;
-
-			priv = macsec_priv(loop_dev);
-
-			/* A limitation of the MACsec h/w offloading is only a
-			 * single MACsec interface can be created for a given
-			 * real interface.
-			 */
-			if (macsec_get_ops(netdev_priv(dev), NULL) &&
-			    priv->real_dev == real_dev)
-				return -EBUSY;
-		}
-	}
 
 	dev->priv_flags |= IFF_MACSEC;
 

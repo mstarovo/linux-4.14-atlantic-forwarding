@@ -3018,6 +3018,8 @@ static int macsec_set_mac_address(struct net_device *dev, void *p)
 {
 	struct macsec_dev *macsec = macsec_priv(dev);
 	struct net_device *real_dev = macsec->real_dev;
+	const struct macsec_ops *ops;
+	struct macsec_context ctx;
 	struct sockaddr *addr = p;
 	int err;
 
@@ -3037,6 +3039,14 @@ out:
 	ether_addr_copy(dev->dev_addr, addr->sa_data);
 
 	macsec->secy.sci = dev_to_sci(dev, MACSEC_PORT_ES);
+
+	/* If h/w offloading is available, propagate to the device */
+	ops = macsec_get_ops(netdev_priv(dev), &ctx);
+	if (ops) {
+		ctx.secy = &macsec->secy;
+		return macsec_offload(ops->mdo_upd_secy, &ctx);
+	}
+
 	return 0;
 }
 

@@ -3210,14 +3210,14 @@ static int macsec_changelink(struct net_device *dev, struct nlattr *tb[],
 	    data[IFLA_MACSEC_PORT])
 		return -EINVAL;
 
+	macsec_changelink_common(dev, data);
+
 	/* If h/w offloading is available, propagate to the device */
 	ops = macsec_get_ops(netdev_priv(dev), &ctx);
 	if (ops) {
 		ctx.secy = &macsec->secy;
 		return macsec_offload(ops->mdo_upd_secy, &ctx);
 	}
-
-	macsec_changelink_common(dev, data);
 
 	return 0;
 }

@@ -1696,6 +1696,7 @@ static int macsec_add_rxsc(struct sk_buff *skb, struct genl_info *info)
 	struct net_device *dev;
 	sci_t sci = MACSEC_UNDEF_SCI;
 	struct nlattr **attrs = info->attrs;
+	struct macsec_secy *secy;
 	struct macsec_rx_sc *rx_sc;
 	struct nlattr *tb_rxsc[MACSEC_RXSC_ATTR_MAX + 1];
 	const struct macsec_ops *ops;
@@ -1719,6 +1720,7 @@ static int macsec_add_rxsc(struct sk_buff *skb, struct genl_info *info)
 		return PTR_ERR(dev);
 	}
 
+	secy = &macsec_priv(dev)->secy;
 	sci = nla_get_sci(tb_rxsc[MACSEC_RXSC_ATTR_SCI]);
 
 	rx_sc = create_rx_sc(dev, sci);
@@ -1734,6 +1736,7 @@ static int macsec_add_rxsc(struct sk_buff *skb, struct genl_info *info)
 	ops = macsec_get_ops(netdev_priv(dev), &ctx);
 	if (ops) {
 		ctx.rx_sc = rx_sc;
+		ctx.secy = secy;
 
 		ret = macsec_offload(ops->mdo_add_rxsc, &ctx);
 		if (ret) {
@@ -2253,6 +2256,7 @@ static int macsec_upd_rxsc(struct sk_buff *skb, struct genl_info *info)
 	ops = macsec_get_ops(netdev_priv(dev), &ctx);
 	if (ops) {
 		ctx.rx_sc = rx_sc;
+		ctx.secy = secy;
 
 		ret = macsec_offload(ops->mdo_upd_rxsc, &ctx);
 		if (ret) {

@@ -749,7 +749,8 @@ static void macsec_finalize_skb(struct sk_buff *skb, u8 icv_len, u8 hdr_len)
 {
 	memmove(skb->data + hdr_len, skb->data, 2 * ETH_ALEN);
 	skb_pull(skb, hdr_len);
-	pskb_trim_unique(skb, skb->len - icv_len);
+	if (icv_len != 0)
+		pskb_trim_unique(skb, skb->len - icv_len);
 }
 
 static void count_rx(struct net_device *dev, int len)
@@ -969,7 +970,7 @@ static rx_handler_result_t macsec_handle_frame(struct sk_buff **pskb)
 	struct macsec_eth_header *hdr;
 	struct macsec_secy *secy = NULL;
 	struct macsec_rx_sc *rx_sc;
-	struct macsec_rx_sa *rx_sa;
+	struct macsec_rx_sa *rx_sa = NULL;
 	struct macsec_rxh_data *rxd;
 	struct macsec_dev *macsec;
 	sci_t sci;
@@ -1044,6 +1045,14 @@ static rx_handler_result_t macsec_handle_frame(struct sk_buff **pskb)
 	secy_stats = this_cpu_ptr(macsec->stats);
 	rxsc_stats = this_cpu_ptr(rx_sc->stats);
 
+	if (macsec_get_ops(macsec, NULL)) {
+		/* HW offload case */
+		/* ICV has already been stripped by HW */
+		macsec_finalize_skb(skb, 0,
+				    macsec_extra_len(macsec_skb_cb(skb)->has_sci));
+		goto deliver_offload;
+	}
+
 	if (!macsec_validate_skb(skb, secy->icv_len)) {
 		u64_stats_update_begin(&secy_stats->syncp);
 		secy_stats->stats.InPktsBadTag++;
@@ -1117,6 +1126,7 @@ static rx_handler_result_t macsec_handle_frame(struct sk_buff **pskb)
 deliver:
 	macsec_finalize_skb(skb, secy->icv_len,
 			    macsec_extra_len(macsec_skb_cb(skb)->has_sci));
+deliver_offload:
 	macsec_reset_skb(skb, secy->netdev);
 
 	if (rx_sa)

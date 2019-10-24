@@ -917,6 +917,11 @@ static enum rx_handler_result handle_not_macsec(struct sk_buff *skb)
 	enum rx_handler_result ret = RX_HANDLER_PASS;
 	struct macsec_rxh_data *rxd;
 	struct macsec_dev *macsec;
+	struct ethhdr *eth = eth_hdr(skb);
+
+	/* Let the uncontrolled port handle the unprotected broadcast messages */
+	if (is_broadcast_ether_addr(eth->h_dest))
+		return RX_HANDLER_PASS;
 
 	rcu_read_lock();
 	rxd = macsec_data_rcu(skb->dev);
@@ -928,6 +933,9 @@ static enum rx_handler_result handle_not_macsec(struct sk_buff *skb)
 	list_for_each_entry_rcu(macsec, &rxd->secys, secys) {
 		struct sk_buff *nskb;
 		struct pcpu_secy_stats *secy_stats = this_cpu_ptr(macsec->stats);
+
+		if (!ether_addr_equal(eth->h_dest, macsec->secy.netdev->dev_addr))
+			continue;
 
 		if (!macsec_get_ops(macsec, NULL) &&
 		    macsec->secy.validate_frames == MACSEC_VALIDATE_STRICT) {

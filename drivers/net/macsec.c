@@ -2733,6 +2733,7 @@ static int dump_secy(struct macsec_secy *secy, struct net_device *dev,
 			nla_nest_cancel(skb, rxsc_list);
 			goto nla_put_failure;
 		}
+		memset(&rx_sc_stats, 0, sizeof(rx_sc_stats));
 		get_rx_sc_stats(dev, rx_sc, &rx_sc_stats);
 		if (copy_rx_sc_stats(skb, &rx_sc_stats)) {
 			nla_nest_cancel(skb, attr);

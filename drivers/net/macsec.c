@@ -3806,8 +3806,13 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 
 	macsec->real_dev = real_dev;
 
-	/* MACsec offloading is off by default */
-	macsec->offload = MACSEC_OFFLOAD_OFF;
+	/* If h/w offloading is available, enable it by default */
+	if (real_dev->features & NETIF_F_HW_MACSEC && real_dev->macsec_ops)
+		macsec->offload = MACSEC_OFFLOAD_MAC;
+	else if (real_dev->phydev && real_dev->phydev->macsec_ops)
+		macsec->offload = MACSEC_OFFLOAD_PHY;
+	else
+		macsec->offload = MACSEC_OFFLOAD_OFF;
 
 	if (data && data[IFLA_MACSEC_ICV_LEN])
 		icv_len = nla_get_u8(data[IFLA_MACSEC_ICV_LEN]);
@@ -3848,6 +3853,20 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 		err = macsec_changelink_common(dev, data);
 		if (err)
 			goto del_dev;
+	}
+
+	/* If h/w offloading is available, propagate to the device */
+	if (macsec_is_offloaded(macsec)) {
+		const struct macsec_ops *ops;
+		struct macsec_context ctx;
+
+		ops = macsec_get_ops(macsec, &ctx);
+		if (ops) {
+			ctx.secy = &macsec->secy;
+			err = macsec_offload(ops->mdo_add_secy, &ctx);
+			if (err)
+				goto del_dev;
+		}
 	}
 
 	err = register_macsec_dev(real_dev, dev);

@@ -1382,6 +1382,11 @@ static struct net_device *get_dev_from_nl(struct net *net,
 	return dev;
 }
 
+static enum macsec_offload nla_get_offload(const struct nlattr *nla)
+{
+	return (__force enum macsec_offload)nla_get_u8(nla);
+}
+
 static sci_t nla_get_sci(const struct nlattr *nla)
 {
 	return (__force sci_t)nla_get_u64(nla);
@@ -3655,8 +3660,16 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 
 	macsec->real_dev = real_dev;
 
-	/* MACsec offloading is off by default */
-	macsec->offload = MACSEC_OFFLOAD_OFF;
+	if (data && data[IFLA_MACSEC_OFFLOAD])
+		macsec->offload = nla_get_offload(data[IFLA_MACSEC_OFFLOAD]);
+	else
+		/* MACsec offloading is off by default */
+		macsec->offload = MACSEC_OFFLOAD_OFF;
+
+	/* Check if the offloading mode is supported by the underlying layers */
+	if (macsec->offload != MACSEC_OFFLOAD_OFF &&
+	    !macsec_check_offload(macsec->offload, macsec))
+		return -EOPNOTSUPP;
 
 	if (data && data[IFLA_MACSEC_ICV_LEN])
 		icv_len = nla_get_u8(data[IFLA_MACSEC_ICV_LEN]);
